@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -325,7 +325,7 @@ export class ApRendererService {
 			inReplyToNote = await this.notesRepository.findOneBy({ id: note.replyId });
 
 			if (inReplyToNote != null) {
-				const inReplyToUserExist = await this.usersRepository.exist({ where: { id: inReplyToNote.userId } });
+				const inReplyToUserExist = await this.usersRepository.exists({ where: { id: inReplyToNote.userId } });
 
 				if (inReplyToUserExist) {
 					if (inReplyToNote.uri) {
@@ -389,17 +389,15 @@ export class ApRendererService {
 			poll = await this.pollsRepository.findOneBy({ noteId: note.id });
 		}
 
-		let apText = text;
+		let apAppend = '';
 
 		if (quote) {
-			apText += `\n\nRE: ${quote}`;
+			apAppend += `\n\nRE: ${quote}`;
 		}
 
 		const summary = note.cw === '' ? String.fromCharCode(0x200B) : note.cw;
 
-		const content = this.apMfmService.getNoteHtml(Object.assign({}, note, {
-			text: apText,
-		}));
+		const { content, noMisskeyContent } = this.apMfmService.getNoteHtml(note, apAppend);
 
 		const emojis = await this.getEmojis(note.emojis);
 		const apemojis = emojis.filter(emoji => !emoji.localOnly).map(emoji => this.renderEmoji(emoji));
@@ -412,9 +410,6 @@ export class ApRendererService {
 
 		const asPoll = poll ? {
 			type: 'Question',
-			content: this.apMfmService.getNoteHtml(Object.assign({}, note, {
-				text: text,
-			})),
 			[poll.expiresAt && poll.expiresAt < new Date() ? 'closed' : 'endTime']: poll.expiresAt,
 			[poll.multiple ? 'anyOf' : 'oneOf']: poll.choices.map((text, i) => ({
 				type: 'Note',
@@ -432,11 +427,13 @@ export class ApRendererService {
 			attributedTo,
 			summary: summary ?? undefined,
 			content: content ?? undefined,
-			_misskey_content: text,
-			source: {
-				content: text,
-				mediaType: 'text/x.misskeymarkdown',
-			},
+			...(noMisskeyContent ? {} : {
+				_misskey_content: text,
+				source: {
+					content: text,
+					mediaType: 'text/x.misskeymarkdown',
+				},
+			}),
 			_misskey_quote: quote,
 			quoteUrl: quote,
 			published: this.idService.parse(note.id).date.toISOString(),
@@ -464,7 +461,7 @@ export class ApRendererService {
 		const attachment = profile.fields.map(field => ({
 			type: 'PropertyValue',
 			name: field.name,
-			value: /^https?:/.test(field.value)
+			value: (field.value.startsWith('http://') || field.value.startsWith('https://'))
 				? `<a href="${new URL(field.value).href}" rel="me nofollow noopener" target="_blank">${new URL(field.value).href}</a>`
 				: field.value,
 		}));
@@ -495,6 +492,7 @@ export class ApRendererService {
 			preferredUsername: user.username,
 			name: user.name,
 			summary: profile.description ? this.mfmService.toHtml(mfm.parse(profile.description)) : null,
+			_misskey_summary: profile.description,
 			icon: avatar ? this.renderImage(avatar) : null,
 			image: banner ? this.renderImage(banner) : null,
 			tag,
@@ -624,6 +622,7 @@ export class ApRendererService {
 				'https://www.w3.org/ns/activitystreams',
 				'https://w3id.org/security/v1',
 				{
+					Key: 'sec:Key',
 					// as non-standards
 					manuallyApprovesFollowers: 'as:manuallyApprovesFollowers',
 					sensitive: 'as:sensitive',
@@ -644,6 +643,7 @@ export class ApRendererService {
 					'_misskey_quote': 'misskey:_misskey_quote',
 					'_misskey_reaction': 'misskey:_misskey_reaction',
 					'_misskey_votes': 'misskey:_misskey_votes',
+					'_misskey_summary': 'misskey:_misskey_summary',
 					'isCat': 'misskey:isCat',
 					// vcard
 					vcard: 'http://www.w3.org/2006/vcard/ns#',

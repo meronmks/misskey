@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -93,4 +93,9 @@ export class MiChannel {
 		default: false,
 	})
 	public isSensitive: boolean;
+
+	@Column('boolean', {
+		default: true,
+	})
+	public allowRenoteToExternal: boolean;
 }

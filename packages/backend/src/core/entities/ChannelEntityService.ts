@@ -1,11 +1,11 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
-import type { ChannelFavoritesRepository, ChannelFollowingsRepository, ChannelsRepository, DriveFilesRepository, NoteUnreadsRepository, NotesRepository } from '@/models/_.js';
+import type { ChannelFavoritesRepository, ChannelFollowingsRepository, ChannelsRepository, DriveFilesRepository, NotesRepository } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { } from '@/models/Blocking.js';
 import type { MiUser } from '@/models/User.js';
@@ -31,9 +31,6 @@ export class ChannelEntityService {
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
 
-		@Inject(DI.noteUnreadsRepository)
-		private noteUnreadsRepository: NoteUnreadsRepository,
-
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
 
@@ -54,21 +51,14 @@ export class ChannelEntityService {
 
 		const banner = channel.bannerId ? await this.driveFilesRepository.findOneBy({ id: channel.bannerId }) : null;
 
-		const hasUnreadNote = meId ? await this.noteUnreadsRepository.exist({
-			where: {
-				noteChannelId: channel.id,
-				userId: meId,
-			},
-		}) : undefined;
-
-		const isFollowing = meId ? await this.channelFollowingsRepository.exist({
+		const isFollowing = meId ? await this.channelFollowingsRepository.exists({
 			where: {
 				followerId: meId,
 				followeeId: channel.id,
 			},
 		}) : false;
 
-		const isFavorited = meId ? await this.channelFavoritesRepository.exist({
+		const isFavorited = meId ? await this.channelFavoritesRepository.exists({
 			where: {
 				userId: meId,
 				channelId: channel.id,
@@ -95,11 +85,12 @@ export class ChannelEntityService {
 			usersCount: channel.usersCount,
 			notesCount: channel.notesCount,
 			isSensitive: channel.isSensitive,
+			allowRenoteToExternal: channel.allowRenoteToExternal,
 
 			...(me ? {
 				isFollowing,
 				isFavorited,
-				hasUnreadNote,
+				hasUnreadNote: false, // 後方互換性のため
 			} : {}),
 
 			...(detailed ? {

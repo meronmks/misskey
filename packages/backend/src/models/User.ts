@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -137,6 +137,17 @@ export class MiUser {
 		length: 128, nullable: true,
 	})
 	public bannerBlurhash: string | null;
+
+	@Column('jsonb', {
+		default: [],
+	})
+	public avatarDecorations: {
+		id: string;
+		angle?: number;
+		flipH?: boolean;
+		offsetX?: number;
+		offsetY?: number;
+	}[];
 
 	@Index()
 	@Column('varchar', {

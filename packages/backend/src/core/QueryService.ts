@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: syuilo and other misskey contributors
+ * SPDX-FileCopyrightText: syuilo and misskey-project
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -40,7 +40,7 @@ export class QueryService {
 	) {
 	}
 
-	public makePaginationQuery<T extends ObjectLiteral>(q: SelectQueryBuilder<T>, sinceId?: string, untilId?: string, sinceDate?: number, untilDate?: number): SelectQueryBuilder<T> {
+	public makePaginationQuery<T extends ObjectLiteral>(q: SelectQueryBuilder<T>, sinceId?: string | null, untilId?: string | null, sinceDate?: number | null, untilDate?: number | null): SelectQueryBuilder<T> {
 		if (sinceId && untilId) {
 			q.andWhere(`${q.alias}.id > :sinceId`, { sinceId: sinceId });
 			q.andWhere(`${q.alias}.id < :untilId`, { untilId: untilId });
@@ -212,8 +212,8 @@ export class QueryService {
 				// または 自分自身
 					.orWhere('note.userId = :meId')
 				// または 自分宛て
-					.orWhere(':meId = ANY(note.visibleUserIds)')
-					.orWhere(':meId = ANY(note.mentions)')
+					.orWhere(':meIdAsList <@ note.visibleUserIds')
+					.orWhere(':meIdAsList <@ note.mentions')
 					.orWhere(new Brackets(qb => {
 						qb
 						// または フォロワー宛ての投稿であり、
@@ -228,7 +228,7 @@ export class QueryService {
 					}));
 			}));
 
-			q.setParameters({ meId: me.id });
+			q.setParameters({ meId: me.id, meIdAsList: [me.id] });
 		}
 	}
 
